@@ -24,16 +24,13 @@ celt/modes.h \
 celt/os_support.h \
 celt/pitch.h \
 celt/celt_lpc.h \
+celt/x86/celt_lpc_sse.h \
 celt/quant_bands.h \
 celt/rate.h \
 celt/stack_alloc.h \
 celt/vq.h \
 celt/static_modes_float.h \
 celt/static_modes_fixed.h \
+celt/static_modes_float_arm_ne10.h \
+celt/static_modes_fixed_arm_ne10.h \
 celt/arm/armcpu.h \
-celt/arm/fixed_armv4.h \
-celt/arm/fixed_armv5e.h \
-celt/arm/kiss_fft_armv4.h \
-celt/arm/kiss_fft_armv5e.h \
-celt/arm/pitch_arm.h \
-celt/x86/pitch_sse.h

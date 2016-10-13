@@ -874,6 +874,7 @@ void usage_p(char *exe)
   printf("By default, the given file(s) will be sent over RTP.\n");
 }
 
+/*
 int main(int argc, char *argv[])
 {
   int option, i;
@@ -888,8 +889,9 @@ int main(int argc, char *argv[])
     {"sniff", no_argument, NULL, 0},
     {0, 0, 0, 0}
   };
-
+*/
   /* process command line arguments */
+  /*
   while ((option = getopt_long(argc, argv, "hVqd:p:", long_options, &i)) != -1) {
     switch (option) {
       case 0:
@@ -935,3 +937,4 @@ int main(int argc, char *argv[])
 
   return 0;
 }
+*/

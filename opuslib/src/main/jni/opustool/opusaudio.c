@@ -225,6 +225,7 @@ static int writeOggPage(ogg_page *page, FILE *os) {
 }
 
 const opus_int32 bitrate = 16000;
+//默认采样率
 const opus_int32 rate = 16000;
 const opus_int32 frame_size = 960;
 const int with_cvbr = 1;
