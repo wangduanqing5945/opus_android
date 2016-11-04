@@ -218,15 +218,19 @@ static void comment_pad(char **comments, int* length, int amount) {
     }
 }
 
-static int writeOggPage(ogg_page *page, FILE *os) {
+static int writeOggPage(ogg_page *page, FILE *os, uint8_t *outBuffer, int from) {
+    LOGD("duanqing writeOggPage begin");
+    memcpy(outBuffer + from, page->header, page->header_len);
+    LOGD("duanqing writeOggPage begin 1");
     int written = fwrite(page->header, sizeof(unsigned char), page->header_len, os);
+    memcpy(outBuffer + from + page->header_len, page->body, page->body_len);
     written += fwrite(page->body, sizeof(unsigned char), page->body_len, os);
     return written;
 }
 
 const opus_int32 bitrate = 16000;
 //默认采样率
-const opus_int32 rate = 16000;
+opus_int32 rate = 16000;
 const opus_int32 frame_size = 960;
 const int with_cvbr = 1;
 const int max_ogg_delay = 0;
@@ -253,6 +257,7 @@ int size_segments;
 int last_segments;
 
 void cleanupRecorder() {
+    LOGD("duanqing cleanupRecorder");
     if (_encoder) {
         opus_encoder_destroy(_encoder);
         _encoder = 0;
@@ -287,19 +292,19 @@ void cleanupRecorder() {
     LOGD("Recording ends!!!");
 }
 
-int initRecorder(const char *path) {
+int initRecorder(const char *path, int sampleNum, int channels, uint8_t * outBuffer) {
     cleanupRecorder();
 
-    LOGD("in Recorder, path: %s", path);
+    LOGD("duanqing init Recorder, path: %s", path);
     if (!path) {
         return 0;
     }
-
     _fileOs = fopen(path, "wb");
     if (!_fileOs) {
         return 0;
     }
-
+    LOGD("duanqing init Recorder open file");
+    rate = sampleNum;
     inopt.rate = rate;
     inopt.gain = 0;
     inopt.endianness = 0;
@@ -307,11 +312,11 @@ int initRecorder(const char *path) {
     inopt.rawmode = 1;
     inopt.ignorelength = 1;
     inopt.samplesize = 16;
-    inopt.channels = 1;
+    inopt.channels = channels;
     inopt.skip = 0;
 
     comment_init(&inopt.comments, &inopt.comments_length, opus_get_version_string());
-
+    LOGD("duanqing init Recorder comment_init");
     if (rate > 24000) {
         coding_rate = 48000;
     } else if (rate > 16000) {
@@ -324,11 +329,12 @@ int initRecorder(const char *path) {
         coding_rate = 8000;
     }
 
- //   frame_size=frame_size/(48000/coding_rate);
+    //   frame_size=frame_size/(48000/coding_rate);
     if (rate != coding_rate) {
         LOGE("Invalid rate");
         return 0;
     }
+    LOGD("duanqing init Recorder rate is valid");
 
     header.channels = 1;
     header.channel_mapping = 0;
@@ -342,6 +348,7 @@ int initRecorder(const char *path) {
         LOGE("Error cannot create encoder: %s", opus_strerror(result));
         return 0;
     }
+    LOGD("duanqing init Recorder opus_encoder_create");
 
     min_bytes = max_frame_bytes = (1275 * 3 + 7) * header.nb_streams;
     _packet = malloc(max_frame_bytes);
@@ -351,6 +358,7 @@ int initRecorder(const char *path) {
         LOGE("Error OPUS_SET_BITRATE returned: %s", opus_strerror(result));
         return 0;
     }
+    LOGD("duanqing init Recorder opus_encoder_ctl");
 
 #ifdef OPUS_SET_LSB_DEPTH
     result = opus_encoder_ctl(_encoder, OPUS_SET_LSB_DEPTH(max(8, min(24, inopt.samplesize))));
@@ -374,7 +382,7 @@ int initRecorder(const char *path) {
         LOGE("Error: stream init failed");
         return 0;
     }
-
+    LOGD("duanqing init Recorder header_data");
     unsigned char header_data[100];
     int packet_size = opus_header_to_packet_(&header, header_data, 100);
     op.packet = header_data;
@@ -389,8 +397,8 @@ int initRecorder(const char *path) {
         if (!result) {
             break;
         }
-
-        int pageBytesWritten = writeOggPage(&og, _fileOs);
+        LOGD("duanqing init Recorder writeOggPage 1 begin");
+        int pageBytesWritten = writeOggPage(&og, _fileOs, outBuffer, bytes_written);
         if (pageBytesWritten != og.header_len + og.body_len) {
             LOGE("Error: failed writing header to output stream");
             return 0;
@@ -398,6 +406,7 @@ int initRecorder(const char *path) {
         bytes_written += pageBytesWritten;
         pages_out++;
     }
+    LOGD("duanqing init Recorder writeOggPage 1");
 
     comment_pad(&inopt.comments, &inopt.comments_length, comment_padding);
     op.packet = (unsigned char *)inopt.comments;
@@ -413,7 +422,7 @@ int initRecorder(const char *path) {
             break;
         }
 
-        int writtenPageBytes = writeOggPage(&og, _fileOs);
+        int writtenPageBytes = writeOggPage(&og, _fileOs, outBuffer, bytes_written);
         if (writtenPageBytes != og.header_len + og.body_len) {
             LOGE("Error: failed writing header to output stream");
             return 0;
@@ -422,17 +431,17 @@ int initRecorder(const char *path) {
         bytes_written += writtenPageBytes;
         pages_out++;
     }
-
+    LOGD("duanqing init Recorder writeOggPage 2");
     free(inopt.comments);
 
-    return 1;
+    return bytes_written;
 }
 
-int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
+int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount, uint8_t *outBuffer) {
     int cur_frame_size = frame_size;
     _packetId++;
-
     opus_int32 nb_samples = frameByteCount / 2;
+    LOGE("writeFrame begin:%d, nb_samples:%d, total_samples:%d",frameByteCount,nb_samples,total_samples);
     total_samples += nb_samples;
     if (nb_samples < frame_size) {
         op.e_o_s = 1;
@@ -452,7 +461,7 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
             memcpy(paddedFrameBytes, framePcmBytes, frameByteCount);
             memset(paddedFrameBytes + nb_samples * 2, 0, cur_frame_size * 2 - nb_samples * 2);
         }
-
+        LOGE("writeFrame opus_encode: %d",cur_frame_size);
         nbBytes = opus_encode(_encoder, (opus_int16 *)paddedFrameBytes, cur_frame_size, _packet, max_frame_bytes / 10);
         if (freePaddedFrameBytes) {
             free(paddedFrameBytes);
@@ -468,14 +477,15 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
         size_segments = (nbBytes + 255) / 255;
         min_bytes = min(nbBytes, min_bytes);
     }
-
+    int singleBytes = 0;
     while ((((size_segments <= 255) && (last_segments + size_segments > 255)) || (enc_granulepos - last_granulepos > max_ogg_delay)) && ogg_stream_flush_fill(&os, &og, 255 * 255)) {
         if (ogg_page_packets(&og) != 0) {
             last_granulepos = ogg_page_granulepos(&og);
         }
-
         last_segments -= og.header[26];
-        int writtenPageBytes = writeOggPage(&og, _fileOs);
+        int writtenPageBytes = writeOggPage(&og, _fileOs, outBuffer, singleBytes);
+        singleBytes += writtenPageBytes;
+        LOGE("writeFrame writing to file %d---%d",og.header_len,og.body_len);
         if (writtenPageBytes != og.header_len + og.body_len) {
             LOGE("Error: failed writing data to output stream");
             return 0;
@@ -501,7 +511,10 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
             last_granulepos = ogg_page_granulepos(&og);
         }
         last_segments -= og.header[26];
-        int writtenPageBytes = writeOggPage(&og, _fileOs);
+        int writtenPageBytes = writeOggPage(&og, _fileOs, outBuffer, singleBytes);
+        singleBytes += writtenPageBytes;
+
+        LOGE("writeFrame writing to file %d---%d",og.header_len,og.body_len);
         if (writtenPageBytes != og.header_len + og.body_len) {
             LOGE("Error: failed writing data to output stream");
             return 0;
@@ -511,7 +524,7 @@ int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount) {
     }
 
     LOGD("last byte_written is %lld", bytes_written);
-    return 1;
+    return singleBytes;
 }
 //
 //- (NSUInteger)encodedBytes
@@ -538,6 +551,7 @@ int finished;
 int size;
 
 void cleanupPlayer() {
+    LOGE("duanqing cleanupPlayer");
     if (_opusFile) {
         op_free(_opusFile);
         _opusFile = 0;
@@ -546,7 +560,7 @@ void cleanupPlayer() {
     _totalPcmDuration = 0;
     _currentPcmOffset = 0;
     _finished = 0;
-	_channel_count = 0;
+    _channel_count = 0;
 }
 
 int seekPlayer(float position) {
@@ -581,25 +595,25 @@ int seekPlayer(float position) {
 
 int initPlayer(const char *path) {
     cleanupPlayer();
-
+    LOGE("duanqing initPlayer %s ",path);
     int openError = OPUS_OK;
     _opusFile = op_open_file(path, &openError);
     if (!_opusFile || openError != OPUS_OK) {
-        LOGE("op_open_file failed: %d", openError);
+        LOGE("duanqing op_open_file failed: %d", openError);
         cleanupPlayer();
         return 0;
     }
 
     _isSeekable = op_seekable(_opusFile);
     _totalPcmDuration = op_pcm_total(_opusFile, -1);
-	_channel_count = op_channel_count(_opusFile, -1);
-
+    _channel_count = op_channel_count(_opusFile, -1);
+    LOGE("duanqign initPlayer success: %d -- %d", _totalPcmDuration,_channel_count);
     return 1;
 }
 
 void fillBuffer(uint8_t *buffer, int capacity) {
     if (_opusFile) {
-    	_currentPcmOffset = max(0, op_pcm_tell(_opusFile));
+        _currentPcmOffset = max(0, op_pcm_tell(_opusFile));
 
         if (_finished) {
             finished = 1;
@@ -646,9 +660,8 @@ void fillBuffer(uint8_t *buffer, int capacity) {
  * below are some public interfaces for JavaJNI to call
  */
 
-int startRecording(const char *pathStr) {
-
-    int result = initRecorder(pathStr);
+int startRecording(const char *pathStr, unsigned int sampleNum, unsigned int channels, uint8_t *outBuffer) {
+    int result = initRecorder(pathStr, sampleNum, channels, outBuffer);
     return result;
 }
 

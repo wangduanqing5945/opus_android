@@ -11,7 +11,7 @@ int encode(char *, char *,char *);
 
 int decode(char *, char *, char *);
 
-int startRecording(const char *pathStr);
+int startRecording(const char *pathStr, unsigned int, unsigned int, uint8_t *outBuffer);
 
 void stopRecording(void);
 
@@ -25,7 +25,7 @@ long getPcmOffset(void);
 
 void readOpusFile(uint8_t *buffer, int capacity);
 
-int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount);
+int writeFrame(uint8_t *framePcmBytes, unsigned int frameByteCount, uint8_t *outBuffer);
 
 int seekOpusFile(float position);
 

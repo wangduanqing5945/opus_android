@@ -85,10 +85,16 @@ extern "C" {
      * Signature: (Ljava/lang/String;)I
      */
     JNIEXPORT jint JNICALL Java_top_oply_opuslib_OpusTool_startRecording
-      (JNIEnv *env, jobject obj, jstring fileIn){
+      (JNIEnv *env, jobject obj, jstring fileIn, jint samplingRate, jint numberOfChannels, jobject outBuffer){
       char bufFileIn[256] = {0};
       jstrToChar(env, fileIn, bufFileIn);
-      return startRecording(bufFileIn);
+      LOGE("Java_top_oply_opuslib_OpusTool_startRecording begin");
+      jbyte *bufferBytes = (*env)->GetDirectBufferAddress(env, outBuffer);
+      LOGE("Java_top_oply_opuslib_OpusTool_startRecording calloc");
+      int result = startRecording(bufFileIn, samplingRate, numberOfChannels, bufferBytes);
+      LOGE("Java_top_oply_opuslib_OpusTool_startRecording startRecording %d", result);
+      //(*env)->ReleaseShortArrayElements(env,in,audioSignal,JNI_ABORT);
+      return result;
       }
 
     /*
@@ -135,10 +141,14 @@ extern "C" {
      * Signature: (Ljava/nio/ByteBuffer;I)I
      */
     JNIEXPORT jint JNICALL Java_top_oply_opuslib_OpusTool_writeFrame
-      (JNIEnv *env, jobject obj, jobject buffer, jint len) {
+      (JNIEnv *env, jobject obj, jobject buffer, jint len, jobject out) {
 
       jbyte *bufferBytes = (*env)->GetDirectBufferAddress(env, buffer);
-      return writeFrame(bufferBytes, len);
+      jbyte *outBuffer = (*env)->GetDirectBufferAddress(env, out);
+
+      int result = writeFrame(bufferBytes, len, outBuffer);
+            //(*env)->ReleaseShortArrayElements(env,in,audioSignal,JNI_ABORT);
+      return result;
       }
 
     /*

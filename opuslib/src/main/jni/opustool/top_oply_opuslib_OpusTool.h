@@ -39,7 +39,7 @@ JNIEXPORT jint JNICALL Java_top_oply_opuslib_OpusTool_decode
  * Signature: (Ljava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_top_oply_opuslib_OpusTool_startRecording
-  (JNIEnv *, jobject, jstring);
+  (JNIEnv *, jobject, jstring, jint, jint, jobject);
 
 /*
  * Class:     top_oply_opuslib_OpusTool
@@ -71,7 +71,7 @@ JNIEXPORT void JNICALL Java_top_oply_opuslib_OpusTool_stopPlaying
  * Signature: (Ljava/nio/ByteBuffer;I)I
  */
 JNIEXPORT jint JNICALL Java_top_oply_opuslib_OpusTool_writeFrame
-  (JNIEnv *, jobject, jobject, jint);
+  (JNIEnv *, jobject, jobject, jint, jobject);
 
 /*
  * Class:     top_oply_opuslib_OpusTool
